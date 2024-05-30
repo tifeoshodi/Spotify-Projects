@@ -1,1 +1,1 @@
-web: python pp_app.py
+web: gunicorn pp_app:app
