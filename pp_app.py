@@ -70,9 +70,9 @@
 #         print("No valid songs were found to add to the playlist.")
 
 import os
-import spotipy
+from flask import Flask, redirect, url_for, session, request, render_template_string
+from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
-from flask import Flask, request, redirect, session, url_for
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -83,6 +83,68 @@ SPOTIPY_CLIENT_SECRET = 'cb6b0f7aa5d244658c698108b4930337'
 SPOTIPY_REDIRECT_URI = 'https://pp-app-8d3591c7b116.herokuapp.com/callback'
 scope = 'playlist-modify-public'
 
+# sp_oauth = SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID,
+#                         client_secret=SPOTIPY_CLIENT_SECRET,
+#                         redirect_uri=SPOTIPY_REDIRECT_URI,
+#                         scope=scope)
+
+# @app.route('/')
+# def index():
+#     if not session.get('token_info'):
+#         return redirect(url_for('login'))
+#     return '''
+#         <form action="/create_playlist" method="post">
+#             <label for="playlist_name">Playlist Name:</label>
+#             <input type="text" id="playlist_name" name="playlist_name">
+#             <label for="playlist_description">Playlist Description:</label>
+#             <input type="text" id="playlist_description" name="playlist_description">
+#             <label for="songs">Song Titles (comma separated):</label>
+#             <input type="text" id="songs" name="songs">
+#             <input type="submit" value="Create Playlist">
+#         </form>
+#     '''
+
+# @app.route('/login')
+# def login():
+#     auth_url = sp_oauth.get_authorize_url()
+#     return redirect(auth_url)
+
+# @app.route('/callback')
+# def callback():
+#     session.clear()
+#     code = request.args.get('code')
+#     token_info = sp_oauth.get_access_token(code)
+#     session['token_info'] = token_info
+#     return redirect(url_for('index'))
+
+# @app.route('/create_playlist', methods=['POST'])
+# def create_playlist():
+#     if not session.get('token_info'):
+#         return redirect(url_for('login'))
+
+#     token_info = session.get('token_info')
+#     sp = spotipy.Spotify(auth=token_info['access_token'])
+
+#     user_id = sp.current_user()['id']
+#     playlist_name = request.form['playlist_name']
+#     playlist_description = request.form['playlist_description']
+#     song_titles = request.form['songs'].split(',')
+
+#     playlist_id = sp.user_playlist_create(user=user_id, name=playlist_name, public=True, description=playlist_description)['id']
+    
+#     track_ids = []
+#     for title in song_titles:
+#         result = sp.search(q=title.strip(), limit=1, type='track')
+#         tracks = result['tracks']['items']
+#         if tracks:
+#             track_ids.append(tracks[0]['id'])
+    
+#     if track_ids:
+#         sp.playlist_add_items(playlist_id, track_ids)
+#         return f"Playlist '{playlist_name}' created successfully with {len(track_ids)} tracks."
+#     else:
+#         return "No valid songs were found to add to the playlist."
+
 sp_oauth = SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID,
                         client_secret=SPOTIPY_CLIENT_SECRET,
                         redirect_uri=SPOTIPY_REDIRECT_URI,
@@ -92,17 +154,80 @@ sp_oauth = SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID,
 def index():
     if not session.get('token_info'):
         return redirect(url_for('login'))
-    return '''
-        <form action="/create_playlist" method="post">
-            <label for="playlist_name">Playlist Name:</label>
-            <input type="text" id="playlist_name" name="playlist_name">
-            <label for="playlist_description">Playlist Description:</label>
-            <input type="text" id="playlist_description" name="playlist_description">
-            <label for="songs">Song Titles (comma separated):</label>
-            <input type="text" id="songs" name="songs">
-            <input type="submit" value="Create Playlist">
-        </form>
+    
+    # Updated HTML with CSS styling
+    form_html = '''
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Create Spotify Playlist</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #f0f0f0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+            }
+            .form-container {
+                background-color: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                width: 300px;
+            }
+            .form-container h2 {
+                margin-bottom: 20px;
+                color: #333;
+            }
+            .form-container label {
+                display: block;
+                margin-bottom: 5px;
+                color: #555;
+            }
+            .form-container input[type="text"] {
+                width: 100%;
+                padding: 8px;
+                margin-bottom: 15px;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+            }
+            .form-container input[type="submit"] {
+                width: 100%;
+                padding: 10px;
+                background-color: #1db954;
+                border: none;
+                border-radius: 4px;
+                color: white;
+                font-size: 16px;
+                cursor: pointer;
+            }
+            .form-container input[type="submit"]:hover {
+                background-color: #1ed760;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="form-container">
+            <h2>Create Playlist</h2>
+            <form action="/create_playlist" method="post">
+                <label for="playlist_name">Playlist Name:</label>
+                <input type="text" id="playlist_name" name="playlist_name" required>
+                <label for="playlist_description">Playlist Description:</label>
+                <input type="text" id="playlist_description" name="playlist_description" required>
+                <label for="songs">Song Titles (comma separated):</label>
+                <input type="text" id="songs" name="songs" required>
+                <input type="submit" value="Create Playlist">
+            </form>
+        </div>
+    </body>
+    </html>
     '''
+    return render_template_string(form_html)
 
 @app.route('/login')
 def login():
@@ -123,7 +248,7 @@ def create_playlist():
         return redirect(url_for('login'))
 
     token_info = session.get('token_info')
-    sp = spotipy.Spotify(auth=token_info['access_token'])
+    sp = Spotify(auth=token_info['access_token'])
 
     user_id = sp.current_user()['id']
     playlist_name = request.form['playlist_name']
@@ -144,6 +269,10 @@ def create_playlist():
         return f"Playlist '{playlist_name}' created successfully with {len(track_ids)} tracks."
     else:
         return "No valid songs were found to add to the playlist."
+
+# if __name__ == '__main__':
+#     port = int(os.environ.get('PORT', 5000))
+#     app.run(debug=True, host='0.0.0.0', port=port)
 
 if __name__ == '__main__':
     app.run(debug=True, port=8888)
