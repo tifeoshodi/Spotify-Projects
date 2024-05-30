@@ -78,9 +78,9 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24)
 app.config['SESSION_COOKIE_NAME'] = 'Spotify Cookie'
 
-SPOTIPY_CLIENT_ID = os.getenv('SPOTIPY_CLIENT_ID')
-SPOTIPY_CLIENT_SECRET = os.getenv('SPOTIPY_CLIENT_SECRET')
-SPOTIPY_REDIRECT_URI = os.getenv('SPOTIPY_REDIRECT_URI')
+SPOTIPY_CLIENT_ID = 'a96bc27e242548c88fb821581e3157de'
+SPOTIPY_CLIENT_SECRET = 'cb6b0f7aa5d244658c698108b4930337'
+SPOTIPY_REDIRECT_URI = 'https://pp-app-8d3591c7b116.herokuapp.com/callback'
 scope = 'playlist-modify-public'
 
 sp_oauth = SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID,
