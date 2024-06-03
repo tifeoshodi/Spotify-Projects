@@ -281,19 +281,19 @@ from flask import Flask, render_template, request, redirect, url_for, session
 import spotipy
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
-# import os
+import os
 import logging
 import time
 
 
 app = Flask(__name__)
 
-# SPOTIPY_CLIENT_ID = os.getenv('SPOTIPY_CLIENT_ID')
-# SPOTIPY_CLIENT_SECRET = os.getenv('SPOTIPY_CLIENT_SECRET')
-# SPOTIPY_REDIRECT_URI = os.getenv('SPOTIPY_REDIRECT_URI')
-SPOTIPY_CLIENT_ID = 'a96bc27e242548c88fb821581e3157de'
-SPOTIPY_CLIENT_SECRET = 'cb6b0f7aa5d244658c698108b4930337'
-SPOTIPY_REDIRECT_URI = 'https://pp-app-8d3591c7b116.herokuapp.com/callback'
+app.secret_key = os.getenv('FLASK_SECRET_KEY')
+app.config['SESSION_COOKIE_NAME'] = 'spotify-login-session'
+
+SPOTIPY_CLIENT_ID = os.getenv('SPOTIPY_CLIENT_ID')
+SPOTIPY_CLIENT_SECRET = os.getenv('SPOTIPY_CLIENT_SECRET')
+SPOTIPY_REDIRECT_URI = os.getenv('SPOTIPY_REDIRECT_URI')
 scope = 'playlist-modify-public'
 
 sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID,
