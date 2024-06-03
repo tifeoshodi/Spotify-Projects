@@ -339,11 +339,11 @@ def create_playlist():
         song_uris = request.form.getlist('song_uris')
 
         # Validate and correct the format of song URIs
-        formatted_song_uris = [uri if uri.startswith('spotify:track:') else f'spotify:track:{uri}' for uri in song_uris]
+        # formatted_song_uris = [uri if uri.startswith('spotify:track:') else f'spotify:track:{uri}' for uri in song_uris]
 
         user_id = sp.me()['id']
         playlist = sp.user_playlist_create(user_id, playlist_name, description=playlist_description)
-        sp.playlist_add_items(playlist['id'], formatted_song_uris)
+        sp.playlist_add_items(playlist['id'], song_uris)
 
         return redirect(url_for('home'))
     except Exception as e:
