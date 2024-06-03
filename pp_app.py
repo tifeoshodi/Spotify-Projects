@@ -318,7 +318,7 @@ def preview_playlist():
         song_titles = request.form.getlist('song_titles')
 
         # Mock data for songs, replace this with actual API call if needed
-        songs = [{'title': title, 'artist': 'Unknown Artist', 'uri': f'spotify:track:{title}'} for title in song_titles]
+        songs = [{'title': title, 'artist': 'Unknown Artist', 'uri': 'spotify:track:123'} for title in song_titles]
 
         return render_template('preview.html', playlist_name=playlist_name, playlist_description=playlist_description, songs=songs)
     except Exception as e:
