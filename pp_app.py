@@ -318,7 +318,7 @@ def preview_playlist():
         song_titles = request.form.getlist('song_titles')
 
         # Mock data for songs, replace this with actual API call if needed
-        songs = [{'title': title, 'artist': 'Unknown Artist', 'uri': 'spotify:track:123'} for title in song_titles]
+        songs = [{'title': title, 'artist': 'Unknown Artist', 'uri': f'spotify:track:{title}'} for title in song_titles]
 
         return render_template('preview.html', playlist_name=playlist_name, playlist_description=playlist_description, songs=songs)
     except Exception as e:
@@ -339,11 +339,11 @@ def create_playlist():
         song_uris = request.form.getlist('song_uris')
 
         # Validate and correct the format of song URIs
-        # formatted_song_uris = [uri if uri.startswith('spotify:track:') else f'spotify:track:{uri}' for uri in song_uris]
+        formatted_song_uris = [uri if uri.startswith('spotify:track:') else f'spotify:track:{uri}' for uri in song_uris]
 
         user_id = sp.me()['id']
         playlist = sp.user_playlist_create(user_id, playlist_name, description=playlist_description)
-        sp.playlist_add_items(playlist['id'], song_uris)
+        sp.playlist_add_items(playlist['id'], formatted_song_uris)
 
         return redirect(url_for('home'))
     except Exception as e:
