@@ -286,7 +286,7 @@ import logging
 import time
 
 
-app = Flask(__name__)
+app = Flask(__name__)   
 
 app.secret_key = os.getenv('FLASK_SECRET_KEY')
 app.config['SESSION_COOKIE_NAME'] = 'spotify-login-session'
@@ -312,15 +312,18 @@ def home():
 
 @app.route('/preview_playlist', methods=['POST'])
 def preview_playlist():
-    playlist_name = request.form['playlist_name']
-    playlist_description = request.form['playlist_description']
-    song_titles = request.form.getlist('song_titles')
+    try:
+        playlist_name = request.form['playlist_name']
+        playlist_description = request.form['playlist_description']
+        song_titles = request.form.getlist('song_titles')
 
-    # Mock data for songs, replace this with actual API call if needed
-    songs = [{'title': title, 'artist': 'Unknown Artist', 'uri': 'spotify:track:123'} for title in song_titles]
+        # Mock data for songs, replace this with actual API call if needed
+        songs = [{'title': title, 'artist': 'Unknown Artist', 'uri': f'spotify:track:{title}'} for title in song_titles]
 
-    # Render the preview.html template and pass context variables
-    return render_template('preview.html', playlist_name=playlist_name, playlist_description=playlist_description, songs=songs)
+        return render_template('preview.html', playlist_name=playlist_name, playlist_description=playlist_description, songs=songs)
+    except Exception as e:
+        logger.error(f"Error in preview_playlist: {e}")
+        return render_template('error.html', error_message=str(e))
 
 @app.route('/create_playlist', methods=['POST'])
 def create_playlist():
@@ -335,9 +338,12 @@ def create_playlist():
         playlist_description = request.form['playlist_description']
         song_uris = request.form.getlist('song_uris')
 
+        # Validate and correct the format of song URIs
+        formatted_song_uris = [uri if uri.startswith('spotify:track:') else f'spotify:track:{uri}' for uri in song_uris]
+
         user_id = sp.me()['id']
         playlist = sp.user_playlist_create(user_id, playlist_name, description=playlist_description)
-        sp.playlist_add_items(playlist['id'], song_uris)
+        sp.playlist_add_items(playlist['id'], formatted_song_uris)
 
         return redirect(url_for('home'))
     except Exception as e:
