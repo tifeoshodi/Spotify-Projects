@@ -279,9 +279,12 @@
 
 from flask import Flask, render_template, request, redirect, url_for, session
 import spotipy
-from spotipy import Spotify
+from spotipy import Spotify, util
 from spotipy.oauth2 import SpotifyOAuth
 import os
+import logging
+import time
+
 
 app = Flask(__name__)
 SPOTIPY_CLIENT_ID = os.getenv('SPOTIPY_CLIENT_ID')
@@ -293,6 +296,10 @@ sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID,
                                                client_secret=SPOTIPY_CLIENT_SECRET,
                                                redirect_uri=SPOTIPY_REDIRECT_URI,
                                                scope=scope))
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 @app.route('/')
 def home():
@@ -313,39 +320,186 @@ def preview_playlist():
 
 @app.route('/create_playlist', methods=['POST'])
 def create_playlist():
-    if 'token_info' not in session:
-        return redirect('/login')
+    try:
+        if 'token_info' not in session:
+            return redirect('/login')
 
-    token_info = session['token_info']
-    sp = Spotify(auth=token_info['access_token'])
+        token_info = get_token(session)
+        sp = Spotify(auth=token_info['access_token'])
 
-    playlist_name = request.form['playlist_name']
-    playlist_description = request.form['playlist_description']
-    song_uris = request.form.getlist('song_uris')
+        playlist_name = request.form['playlist_name']
+        playlist_description = request.form['playlist_description']
+        song_uris = request.form.getlist('song_uris')
 
-    user_id = sp.me()['id']
-    playlist = sp.user_playlist_create(user_id, playlist_name, description=playlist_description)
-    sp.playlist_add_items(playlist['id'], song_uris)
+        user_id = sp.me()['id']
+        playlist = sp.user_playlist_create(user_id, playlist_name, description=playlist_description)
+        sp.playlist_add_items(playlist['id'], song_uris)
 
-    # Redirect to the home route after creating the playlist
-    return redirect(url_for('home'))
+        return redirect(url_for('home'))
+    except Exception as e:
+        logger.error(f"Error in create_playlist: {e}")
+        return render_template('error.html', error_message=str(e))
+
+
+# @app.route('/create_playlist', methods=['POST'])
+# def create_playlist():
+#     if 'token_info' not in session:
+#         return redirect('/login')
+
+#     token_info = session['token_info']
+#     sp = Spotify(auth=token_info['access_token'])
+
+#     playlist_name = request.form['playlist_name']
+#     playlist_description = request.form['playlist_description']
+#     song_uris = request.form.getlist('song_uris')
+
+#     user_id = sp.me()['id']
+#     playlist = sp.user_playlist_create(user_id, playlist_name, description=playlist_description)
+#     sp.playlist_add_items(playlist['id'], song_uris)
+
+#     # Redirect to the home route after creating the playlist
+#     return redirect(url_for('home'))
 
 @app.route('/login')
 def login():
-    sp_oauth = SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID, client_secret=SPOTIPY_CLIENT_SECRET, redirect_uri=SPOTIPY_REDIRECT_URI, scope='playlist-modify-public')
+    sp_oauth = SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID, client_secret=SPOTIPY_CLIENT_SECRET, redirect_uri=SPOTIPY_REDIRECT_URI, scope=scope)
     auth_url = sp_oauth.get_authorize_url()
     return redirect(auth_url)
 
 @app.route('/callback')
 def callback():
-    sp_oauth = SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID, client_secret=SPOTIPY_CLIENT_SECRET, redirect_uri=SPOTIPY_REDIRECT_URI, scope='playlist-modify-public')
-    session.clear()
-    code = request.args.get('code')
-    token_info = sp_oauth.get_access_token(code)
-    session['token_info'] = token_info
-    return redirect(url_for('home'))
+    try:
+        sp_oauth = SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID, client_secret=SPOTIPY_CLIENT_SECRET, redirect_uri=SPOTIPY_REDIRECT_URI, scope='playlist-modify-public')
+        session.clear()
+        code = request.args.get('code')
+        token_info = sp_oauth.get_access_token(code)
+        session['token_info'] = token_info
+        return redirect(url_for('home'))
+    except Exception as e:
+        logger.error(f"Error in callback: {e}")
+        return render_template('error.html', error_message=str(e))
+
+def get_token(session):
+    token_info = session.get('token_info', None)
+    if not token_info:
+        return None
+
+    now = int(time.time())
+    is_token_expired = token_info['expires_at'] - now < 60
+
+    if is_token_expired:
+        sp_oauth = SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID, client_secret=SPOTIPY_CLIENT_SECRET, redirect_uri=SPOTIPY_REDIRECT_URI, scope='playlist-modify-public')
+        token_info = sp_oauth.refresh_access_token(token_info['refresh_token'])
+    
+    return token_info
+
+# @app.route('/callback')
+# def callback():
+#     sp_oauth = SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID, client_secret=SPOTIPY_CLIENT_SECRET, redirect_uri=SPOTIPY_REDIRECT_URI, scope=scope)
+#     session.clear()
+#     code = request.args.get('code')
+#     token_info = sp_oauth.get_access_token(code)
+#     session['token_info'] = token_info
+#     return redirect(url_for('home'))
 
 if __name__ == '__main__':
     app.run()
 
 
+# from flask import Flask, render_template, request, redirect, url_for, session
+# from spotipy import Spotify, util
+# from spotipy.oauth2 import SpotifyOAuth
+# import os
+# import logging
+
+# app = Flask(__name__)
+# SPOTIPY_CLIENT_ID = os.getenv('SPOTIPY_CLIENT_ID')
+# SPOTIPY_CLIENT_SECRET = os.getenv('SPOTIPY_CLIENT_SECRET')
+# SPOTIPY_REDIRECT_URI = os.getenv('SPOTIPY_REDIRECT_URI')
+# scope = 'playlist-modify-public'
+
+# sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID,
+#                                                client_secret=SPOTIPY_CLIENT_SECRET,
+#                                                redirect_uri=SPOTIPY_REDIRECT_URI,
+#                                                scope=scope))
+
+# # Configure logging
+# logging.basicConfig(level=logging.INFO)
+# logger = logging.getLogger(__name__)
+
+# @app.route('/')
+# def home():
+#     return render_template('index.html')
+
+# @app.route('/preview_playlist', methods=['POST'])
+# def preview_playlist():
+#     try:
+#         playlist_name = request.form['playlist_name']
+#         playlist_description = request.form['playlist_description']
+#         song_titles = request.form.getlist('song_titles')
+
+#         # Mock data for songs, replace this with actual API call if needed
+#         songs = [{'title': title, 'artist': 'Unknown Artist', 'uri': 'spotify:track:123'} for title in song_titles]
+
+#         return render_template('preview.html', playlist_name=playlist_name, playlist_description=playlist_description, songs=songs)
+#     except Exception as e:
+#         logger.error(f"Error in preview_playlist: {e}")
+#         return render_template('error.html', error_message=str(e))
+
+# @app.route('/create_playlist', methods=['POST'])
+# def create_playlist():
+#     try:
+#         if 'token_info' not in session:
+#             return redirect('/login')
+
+#         token_info = get_token(session)
+#         sp = Spotify(auth=token_info['access_token'])
+
+#         playlist_name = request.form['playlist_name']
+#         playlist_description = request.form['playlist_description']
+#         song_uris = request.form.getlist('song_uris')
+
+#         user_id = sp.me()['id']
+#         playlist = sp.user_playlist_create(user_id, playlist_name, description=playlist_description)
+#         sp.playlist_add_items(playlist['id'], song_uris)
+
+#         return redirect(url_for('home'))
+#     except Exception as e:
+#         logger.error(f"Error in create_playlist: {e}")
+#         return render_template('error.html', error_message=str(e))
+
+# @app.route('/login')
+# def login():
+#     sp_oauth = SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID, client_secret=SPOTIPY_CLIENT_SECRET, redirect_uri=SPOTIPY_REDIRECT_URI, scope='playlist-modify-public')
+#     auth_url = sp_oauth.get_authorize_url()
+#     return redirect(auth_url)
+
+# @app.route('/callback')
+# def callback():
+#     try:
+#         sp_oauth = SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID, client_secret=SPOTIPY_CLIENT_SECRET, redirect_uri=SPOTIPY_REDIRECT_URI, scope='playlist-modify-public')
+#         session.clear()
+#         code = request.args.get('code')
+#         token_info = sp_oauth.get_access_token(code)
+#         session['token_info'] = token_info
+#         return redirect(url_for('home'))
+#     except Exception as e:
+#         logger.error(f"Error in callback: {e}")
+#         return render_template('error.html', error_message=str(e))
+
+# def get_token(session):
+#     token_info = session.get('token_info', None)
+#     if not token_info:
+#         return None
+
+#     now = int(time.time())
+#     is_token_expired = token_info['expires_at'] - now < 60
+
+#     if is_token_expired:
+#         sp_oauth = SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID, client_secret=SPOTIPY_CLIENT_SECRET, redirect_uri=SPOTIPY_REDIRECT_URI, scope='playlist-modify-public')
+#         token_info = sp_oauth.refresh_access_token(token_info['refresh_token'])
+    
+#     return token_info
+
+# if __name__ == '__main__':
+#     app.run()
