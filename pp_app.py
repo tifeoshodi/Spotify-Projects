@@ -277,13 +277,13 @@
 # if __name__ == '__main__':
 #     app.run(debug=True, port=8888)
 
-import os
-from flask import Flask, request, redirect, url_for, render_template
+from flask import Flask, render_template, request, redirect, url_for, session
 import spotipy
+from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
+import os
 
 app = Flask(__name__)
-
 SPOTIPY_CLIENT_ID = os.getenv('SPOTIPY_CLIENT_ID')
 SPOTIPY_CLIENT_SECRET = os.getenv('SPOTIPY_CLIENT_SECRET')
 SPOTIPY_REDIRECT_URI = os.getenv('SPOTIPY_REDIRECT_URI')
@@ -294,46 +294,58 @@ sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID,
                                                redirect_uri=SPOTIPY_REDIRECT_URI,
                                                scope=scope))
 
-
 @app.route('/')
-def index():
+def home():
+    # Render the index.html template
     return render_template('index.html')
 
 @app.route('/preview_playlist', methods=['POST'])
 def preview_playlist():
     playlist_name = request.form['playlist_name']
     playlist_description = request.form['playlist_description']
-    song_titles = request.form['song_titles'].split('\n')
-    song_titles = [title.strip() for title in song_titles if title.strip()]
+    song_titles = request.form.getlist('song_titles')
 
-    # Search for songs on Spotify and get their information
-    songs = []
-    for title in song_titles:
-        result = sp.search(q=title, type='track', limit=1)
-        if result['tracks']['items']:
-            song = result['tracks']['items'][0]
-            songs.append({
-                'title': song['name'],
-                'artist': song['artists'][0]['name'],
-                'uri': song['uri']
-            })
+    # Mock data for songs, replace this with actual API call if needed
+    songs = [{'title': title, 'artist': 'Unknown Artist', 'uri': 'spotify:track:123'} for title in song_titles]
 
+    # Render the preview.html template and pass context variables
     return render_template('preview.html', playlist_name=playlist_name, playlist_description=playlist_description, songs=songs)
 
 @app.route('/create_playlist', methods=['POST'])
 def create_playlist():
+    if 'token_info' not in session:
+        return redirect('/login')
+
+    token_info = session['token_info']
+    sp = Spotify(auth=token_info['access_token'])
+
     playlist_name = request.form['playlist_name']
     playlist_description = request.form['playlist_description']
     song_uris = request.form.getlist('song_uris')
 
-    # Create a new playlist
-    user_id = sp.current_user()['id']
-    playlist = sp.user_playlist_create(user=user_id, name=playlist_name, description=playlist_description)
+    user_id = sp.me()['id']
+    playlist = sp.user_playlist_create(user_id, playlist_name, description=playlist_description)
+    sp.playlist_add_items(playlist['id'], song_uris)
 
-    # Add songs to the new playlist
-    sp.playlist_add_items(playlist_id=playlist['id'], items=song_uris)
+    # Redirect to the home route after creating the playlist
+    return redirect(url_for('home'))
 
-    return f'Playlist "{playlist_name}" created successfully!'
+@app.route('/login')
+def login():
+    sp_oauth = SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID, client_secret=SPOTIPY_CLIENT_SECRET, redirect_uri=SPOTIPY_REDIRECT_URI, scope='playlist-modify-public')
+    auth_url = sp_oauth.get_authorize_url()
+    return redirect(auth_url)
+
+@app.route('/callback')
+def callback():
+    sp_oauth = SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID, client_secret=SPOTIPY_CLIENT_SECRET, redirect_uri=SPOTIPY_REDIRECT_URI, scope='playlist-modify-public')
+    session.clear()
+    code = request.args.get('code')
+    token_info = sp_oauth.get_access_token(code)
+    session['token_info'] = token_info
+    return redirect(url_for('home'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
+
+
